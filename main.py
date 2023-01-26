@@ -111,6 +111,11 @@ async def start_app(message : types.Message):
                           руководство по использованию, либо 
                           отказывает в доступе.
     """
+    if os.path.exists('Posts'):
+        pass
+    else:
+        os.mkdir('Posts')
+
     lm.scr_log('{0} - Вызов команды "start" от пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
     if str(message.from_user.id) == adminId:
         lm.scr_log('{0} - Проверка пройдена, вызов команды "start" одобрен для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
@@ -190,7 +195,8 @@ async def start_сhecking(message : types.Message):
                 newLastPost = sj.get_lastPostLink_in_tagPage(sj.get_page_bs4(tag))
                 if newLastPost != lastPostLinks[tag]:
                     lastPostLinks[tag] = newLastPost
-                    await message.answer('Эй! Для тебя новость! \nВ разделе {0} появился новый пост:\n {1}'.format(tag, newLastPost))
+                    queueOfPosts.append(newLastPost)
+                    await message.answer('Эй! Для тебя новость! \nВ разделе {0} появился новый пост:\n {1}\nХочешь скачать его(Да\\Нет)?\nПомни, что посты могут накапливаться, а твой ответ будет привязан к самому старому, оставленному без ответа. \nПрвоерить очередь можно командой \\get_queueOfPosts'.format(tag, newLastPost))
                     
     else:
         await message.answer('Ты не армянини.')
@@ -343,7 +349,33 @@ async def echo_send(message : types.Message):
         else:
             await message.answer('Ты не армянини.')
             lm.scr_log('{0} - Проверка не пройдена, вызов команды "del_tag" запрещён для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
-    
+    elif message.text == 'Да':
+        lm.scr_log('Согласие на выгрузку поста от пользователя: {0} - содержание вызова: {1}'.format(message.from_user.id, message.text))
+        if str(message.from_user.id) == adminId:
+            lm.scr_log('{0} - Проверка пройдена, согласие на выгрузку поста одобрено для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
+            if len(queueOfPosts) == 0:
+                await message.answer('Очередь постов пуста')
+            else:
+                downloadPost = queueOfPosts.pop(0)
+                sj.download_Post_full(downloadPost, 'Posts')
+                await message.answer('Пост {0} выгружен. В очереди осталось {1} необработанных постов'.format(downloadPost, len(queueOfPosts)))
+        else:
+            await message.answer('Ты не армянини.')
+            lm.scr_log('{0} - Проверка не пройдена, согласие на выгрузку запрещёно для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
+
+    elif message.text == 'Нет':
+        lm.scr_log('Отказ от выгрузки поста от пользователя: {0} - содержание вызова: {1}'.format(message.from_user.id, message.text))
+        if str(message.from_user.id) == adminId:
+            lm.scr_log('{0} - Проверка пройдена, отказ от выгрузки поста одобрен для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
+            if len(queueOfPosts) == 0:
+                await message.answer('Очередь постов пуста')
+            else:
+                downloadPost = queueOfPosts.pop(0)
+                await message.answer('Пост {0} отклонён. В очереди осталось {1} необработанных постов'.format(downloadPost, len(queueOfPosts)))
+        else:
+            await message.answer('Ты не армянини.')
+            lm.scr_log('{0} - Проверка не пройдена, отказ от выгрузки запрещён для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
+
     else:
         await message.answer(message.text) 
         lm.msg_log('date: {0}; id: {1}; message: {2} '.format(str(datetime.datetime.now()), str(message.from_user.id), message.text))
