@@ -1,13 +1,14 @@
+# Блок функций для парсинга
+
 from bs4 import BeautifulSoup
 import requests
 import time
 import aiogram
 import os
-
 import ssl
 
-ssl._create_default_https_context = ssl._create_unverified_context
 
+ssl._create_default_https_context = ssl._create_unverified_context
 
 allHeaders = {
     "Referer": "https://joyreactor.cc/",

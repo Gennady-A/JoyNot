@@ -17,7 +17,7 @@ tgToken = CONFIG.bot
 adminId = CONFIG.admin
 
 startChecking = False
-autopost = False
+autosave = False
 
 tags = [] # Список ссылок на отслеживание.
 tagsName = {} # Словарь ссылок-имён. Хранит названия разделов по ссылке в качестве ключа.
@@ -130,7 +130,11 @@ async def start_app(message : types.Message):
             \n/get_queueOfPosts - вернуть список непроверенных пользователем постов.\
             \n/start_checking - запустить отслеживание последних постов в разделах из списка.\
             \n/stop_checking - остановить отслеживание последних постов в разделах из списка\
-            \n/my_id - узнать мой id.')
+            \n/my_id - узнать мой id.\
+            \n/autosave_on - включить автоматическую загрузку содержимого поста.\
+            \n/autosave_off - выключить автоматическую загрузку содержимого поста.\
+            \n/savedata - сохранить текущие настройки(список разделов, последние посты и т.д) в отдельный файл\
+            \n/loaddata - загрузка последнего сохранённого состояния')
     else:
         await message.answer('Ты не армянини.')
         lm.scr_log('{0} - Проверка не пройдена, вызов команды "start" запрещён для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
@@ -158,7 +162,11 @@ async def help(message : types.Message):
             \n/get_queueOfPosts - вернуть список непроверенных пользователем постов.\
             \n/start_checking - запустить отслеживание последних постов в разделах из списка.\
             \n/stop_checking - остановить отслеживание последних постов в разделах из списка\
-            \n/my_id - узнать мой id.')
+            \n/my_id - узнать мой id.\
+            \n/autosave_on - включить автоматическую загрузку содержимого поста.\
+            \n/autosave_off - выключить автоматическую загрузку содержимого поста.\
+            \n/savedata - сохранить текущие настройки(список разделов, последние посты и т.д) в отдельный файл\
+            \n/loaddata - загрузка последнего сохранённого состояния')
     else:
         await message.answer('Ты не армянини.')
         lm.scr_log('{0} - Проверка не пройдена, вызов команды "help" запрещён для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
@@ -195,8 +203,12 @@ async def start_сhecking(message : types.Message):
                 newLastPost = sj.get_lastPostLink_in_tagPage(sj.get_page_bs4(tag))
                 if newLastPost != lastPostLinks[tag]:
                     lastPostLinks[tag] = newLastPost
-                    queueOfPosts.append(newLastPost)
-                    await message.answer('Эй! Для тебя новость! \nВ разделе {0} появился новый пост:\n {1}\nХочешь скачать его(Да\\Нет)?\nПомни, что посты могут накапливаться, а твой ответ будет привязан к самому старому, оставленному без ответа. \nПрвоерить очередь можно командой \\get_queueOfPosts'.format(tag, newLastPost))
+                    if not(newLastPost in queueOfPosts): 
+                        if autosave:
+                            sj.download_Post_full(newLastPost, 'Posts')
+                        else:
+                            queueOfPosts.append(newLastPost)
+                            await message.answer('Эй! Для тебя новость! \nВ разделе {0} появился новый пост:\n {1}\nХочешь скачать его(Да\\Нет)?\nПомни, что посты могут накапливаться, а твой ответ будет привязан к самому старому, оставленному без ответа. \nПрвоерить очередь можно командой \\get_queueOfPosts'.format(tag, newLastPost))
                     
     else:
         await message.answer('Ты не армянини.')
@@ -225,6 +237,60 @@ async def stop_checking(message : types.Message):
     else:
         await message.answer('Ты не армянини.')
         lm.scr_log('{0} - Проверка не пройдена, вызов команды "stop_checking" запрещён для пользователя: {1}'.format(str(datetime.datetime.now()), str(message.from_user.id)))
+
+@dp.message_handler(commands=['autosave_on'])
+async def autosave_on(message : types.Message):
+    """
+        Назначение: Включение автоматической выгрузки контента.
+
+        Функционирование: Обращается к глобальной переменной, показывающей, 
+                          нужно ли автоматически выгружать контент
+                          или необходимо уведомить пользователя. Присваивает
+                          ей значение True.
+    """
+    global autosave 
+    autosave = True
+
+@dp.message_handler(commands=['autosave_off'])
+async def autosave_off(message : types.Message):
+    """
+        Назначение: Выключение автоматической выгрузки контента.
+
+        Функционирование: Обращается к глобальной переменной, показывающей, 
+                          нужно ли автоматически выгружать контент
+                          или необходимо уведомить пользователя. Присваивает
+                          ей значение False. 
+    """
+    global autosave 
+    autosave = False
+
+@dp.message_handler(commands=['savedata'])
+async def savedata(message : types.Message):
+    """
+        Назначение: Сохранение настоящего состояния бота.
+
+        Функционирование: Сохраняет основные данные, с которыми работает бот,
+                          записывая их в файл формата .txt построчно.
+    """
+    with open('Logs\data.txt', 'w') as d:
+        d.write('|'.join(['{0}'.format(tags[i]) for i in range(len(tags))]) + '\n' \
+              + '|'.join(['{0}-{1}'.format(tagsName[tags[i]], lastPostLinks[tags[i]]) for i in range(len(tags))]) + '\n' \
+              + '|'.join(['{0}'.format(queueOfPosts[i]) for i in range(len(queueOfPosts))]))
+
+@dp.message_handler(commands=['loaddata'])
+async def loaddata(message : types.Message):
+    """
+        Назначение: Установка последнего сохранённого состояния бота.
+
+        Функционирование: Считывает основные данные, с которыми работает бот,
+                          из файла формата .txt построчно.
+    """
+    with open('Logs\data.txt', 'r') as d:
+        tags = d.readline().strip().split('|')
+        lastPostLinksL = d.readline().strip().split('|')
+        for i in lastPostLinksL:
+            lastPostLinks[i.split('-')[0]] = i.split('-')[1]
+        queueOfPosts = d.readline().strip().split('|')
 
 # Команда выводит список добавленнных тегов. 
 @dp.message_handler(commands=['get_tagList'])

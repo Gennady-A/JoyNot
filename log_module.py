@@ -1,3 +1,5 @@
+# Блок функций для логирования работы бота.
+
 def scr_log(s):
     """
     
@@ -12,7 +14,7 @@ def msg_log(s):
     with open("Logs\\msg_log.txt", "a") as msg_log:
         msg_log.write(s+"\n")
 
-
+# Старые функции
 def write_into_scrlog(s):
     """
         Input: строку, которую нужно записать в файл логов.
